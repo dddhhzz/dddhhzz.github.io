@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+  
+    
+    <entry>
+      <title>test</title>
+      <link href="/2026/06/05/test/"/>
+      <url>/2026/06/05/test/</url>
+      
+        <content type="html"><![CDATA[<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs bash"><br><br><br>safaf<br>asfaf<br>ss<br><br><br></code></pre></td></tr></table></figure><p>$$<br>Attention(Q,K,V)&#x3D;softmax(\frac{QK^T}{\sqrt{d_k}})V<br>$$</p><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">import</span> torch<br><span class="hljs-keyword">import</span> torch.nn <span class="hljs-keyword">as</span> nn<br><br><span class="hljs-comment"># 这是一个自注意力机制的伪代码</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">self_attention</span>(<span class="hljs-params">q, k, v</span>):<br>    <span class="hljs-keyword">return</span> torch.softmax(q @ k.T / math.sqrt(d_k), dim=-<span class="hljs-number">1</span>) @ v<br></code></pre></td></tr></table></figure><p>我们之所以不“用一个东西搞定”，而是要从“文件控制块”中分离出“索引节点”，主要有两个原因：</p><ol><li><strong>为了效率</strong>：极大地提高了<strong>文件查找的速度</strong>，减少了目录检索时的磁盘I&#x2F;O次数。</li><li><strong>为了功能</strong>：非常方便地实现了**文件共享（硬链接）**机制。</li></ol><p>这正是计算机科学中“通过增加一层抽象来解决问题”的经典思想体现。</p><hr><p>“文件目录项和FCB有什么关系？” 这个问题的答案取决于我们讨论的是哪种文件系统：</p><ol><li><strong>在传统简单的文件系统中</strong>：<strong>文件目录项就是文件控制块（FCB）</strong>。它们是同义词。</li><li><strong>在采用索引节点的文件系统中（如Linux）</strong>：两者是<strong>分离的</strong>。<ul><li><strong>文件目录项</strong> &#x3D; 文件名 + 指向inode的指针（inode号）。</li><li>而文件的所有其他属性和信息则存放在**索引节点（inode）*<em>中。你可以把*<em>inode看作是FCB的主体部分</em></em>。</li></ul></li></ol><p>这种从“合一”到“分离”的演进，主要是为了</p><p><strong>提高目录检索的效率</strong>，大大减少了查找文件时的磁盘I&#x2F;O次数，同时也方便地实现了硬链接等文件共享功能。 </p><hr><p>在“打开文件的关联信息”中，“文件磁盘位置”不是指文件指针（读写到哪个字节了），而是指<strong>为了定位文件在磁盘上的数据块所需要的所有地址信息</strong>（如FCB中的物理地址信息）的<strong>内存副本</strong>。它的存在，是操作系统用空间换时间、优化I&#x2F;O性能的经典体现。</p><hr><p>你（<strong>用户进程</strong>）现在要完成一项任务：<strong>阅读《操作系统》这本书（一个文件），并做一些笔记</strong>。</p><p><strong>第一步：打开文件 (<code>open</code>) —— “借阅登记”</strong></p><ol><li><strong>你的请求</strong>：你走到图书馆前台，对馆长说：“你好，我要借阅《操作系统》这本书。” (用户程序调用 <code>open(&quot;操作系统&quot;)</code>)。</li><li><strong>馆长的查找工作</strong>：<ul><li>馆长先看总索引（<strong>根目录</strong>），找到“计算机科学”这个分类。</li><li>然后他跑到“计算机科学”的书库，在那个区域的索引卡片上（<strong>子目录</strong>）查找“操作系统”这本书的卡片（<strong>FCB&#x2F;inode</strong>）。这个过程需要他跑腿去库房里翻找（<strong>磁盘I&#x2F;O</strong>）。</li></ul></li><li><strong>馆长的登记工作</strong>：<ul><li>找到卡片后，他不会把这张原始卡片给你。他会把他面前的一个**“当日借阅登记簿”（系统打开文件表）<strong>翻开新的一页，把这本书的</strong>核心信息**（比如它在哪个书架，共多少页等）抄了上去，并在旁边标注“当前有1人借阅”。</li><li>同时，他给你发了一个专属的**“临时借阅牌”，上面写着号码，比如“03号”**（*<em>文件描述符*</em>）。他也在自己的一个**“个人服务记录本”（进程打开文件表）**上记下：“03号牌对应《操作系统》这本书，这个人准备从第1页开始看（文件指针）”。</li></ul></li><li><strong>完成登记</strong>：馆长把“03号”这个借阅牌交给你，<code>open</code>操作完成。<strong>注意，从头到尾，书的内容还没被拿出来。</strong></li></ol><p><strong>第二步：读文件 (<code>read</code>) —— “按页取书”</strong></p><ol><li><strong>你的请求</strong>：你拿着“03号”借阅牌，对馆长说：“请帮我取一下我这本书的第50页内容。” (用户程序调用 <code>read(03, ...)</code> )。<strong>注意，你现在用的是借阅牌号，而不是书名了！</strong></li><li><strong>馆长的服务工作</strong>：<ul><li>馆长根据你的“03号”牌，查阅他的“个人服务记录本”，确认你要的是《操作系统》，并且你有阅读权限。</li><li>他再去看“当日借阅登记簿”上抄下来的那份位置信息，计算出第50页具体在哪个书架的哪个位置（<strong>地址转换</strong>）。</li><li>他跑去书库（<strong>磁盘I&#x2F;O</strong>），把第50页的内容复印一份，拿回来交给你。</li><li>同时，他在“个人服务记录本”上把你的阅读进度更新为“准备看第51页”（<strong>更新文件指针</strong>）。</li></ul></li></ol><p><strong>第三步：关闭文件 (<code>close</code>) —— “注销登记”</strong></p><ol><li><p><strong>你的请求</strong>：你看完书，把“03号”借阅牌还给馆长说：“这本书我用完了，谢谢。” (用户程序调用 <code>close(03)</code>)。</p></li><li><p><strong>馆长的收尾工作</strong>：</p><ul><li><p>馆长收回你的“03号”牌，在他的“个人服务记录本”上划掉这一条记录。</p></li><li><p>他再去“当日借阅登记簿”上，把这本书的“借阅人数”从1减为0。</p></li><li><p>当他发现借阅人数变成0时，他知道这本书现在没人看了，就把登记簿上这一页也撕掉销毁了。</p><hr><p>3 A记住这个核心区别：</p><ul><li><p><strong>打开 (Open)</strong>：<strong>建立连接，准备通道</strong>。把文件的**“导航图&#x2F;说明书”（目录项）**从磁盘复制到内存，方便后续操作。</p></li><li><p><strong>读取 (Read)</strong>：<strong>传输数据，获取内容</strong>。利用“打开”时建立好的通道和导航图，真正去磁盘把<strong>文件数据</strong>搬运到内存。</p><p>7 数据文件（普通文件）</p><p>9 <strong>目录项</strong>：在<strong>磁盘</strong>上，是文件的“户口本”，永久存放。</p><p><strong>FCB</strong>：在<strong>内存</strong>里，是文件的“临时通行证”，打开时创建，关闭时销毁。</p></li></ul></li></ul></li></ol><p>More info: [Server](</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 学术阅读 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> LLM </tag>
+            
+            <tag> Time-Series </tag>
+            
+            <tag> Survey </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>Hello World</title>
+      <link href="/2026/06/05/hello-world/"/>
+      <url>/2026/06/05/hello-world/</url>
+      
+        <content type="html"><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p><h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ hexo new <span class="hljs-string">&quot;My New Post&quot;</span><br></code></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p><h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ hexo server<br></code></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p><h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ hexo generate<br></code></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p><h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">$ hexo deploy<br></code></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>]]></content>
+      
+      
+      
+    </entry>
+    
+    
+  
+  
+</search>
